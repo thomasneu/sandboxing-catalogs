@@ -1,158 +1,128 @@
-# outputs.tf
-
-output "project_information" {
-  description = "General project information"
-  value = {
-    project_name = var.project_name
-    environment  = var.environment
-    gcp_project  = var.gcp_project_id
-    gcp_region   = var.gcp_region
-  }
+# Service Account outputs
+output "databricks_service_account_email" {
+  value       = google_service_account.databricks_provisioning.email
+  description = "Email of the Databricks provisioning service account"
 }
 
-output "workspaces" {
-  description = "Databricks workspace information"
-  value = {
-    workspace_1 = {
-      id          = databricks_mws_workspaces.sandbox_workspace_1.workspace_id
-      url         = databricks_mws_workspaces.sandbox_workspace_1.workspace_url
-      name        = databricks_mws_workspaces.sandbox_workspace_1.workspace_name
-      deployment_name = databricks_mws_workspaces.sandbox_workspace_1.deployment_name
-      catalog_access = ["catalog_a", "catalog_c"]
-    }
-    workspace_2 = {
-      id          = databricks_mws_workspaces.sandbox_workspace_2.workspace_id
-      url         = databricks_mws_workspaces.sandbox_workspace_2.workspace_url
-      name        = databricks_mws_workspaces.sandbox_workspace_2.workspace_name
-      deployment_name = databricks_mws_workspaces.sandbox_workspace_2.deployment_name
-      catalog_access = ["catalog_b", "catalog_c"]
-    }
-  }
+output "custom_role_url" {
+  value = "https://console.cloud.google.com/iam-admin/roles/details/projects%2F${data.google_client_config.current.project}%2Froles%2F${google_project_iam_custom_role.workspace_creator.role_id}"
+  description = "URL to view the custom workspace creator role in GCP Console"
 }
 
-output "unity_catalog_information" {
-  description = "Unity Catalog setup information"
+# Workspace outputs
+output "databricks_workspace_urls" {
   value = {
-    metastore = {
-      id           = databricks_metastore.unity_catalog.id
-      name         = databricks_metastore.unity_catalog.name
-      region       = databricks_metastore.unity_catalog.region
-      storage_root = databricks_metastore.unity_catalog.storage_root
-    }
-    catalogs = {
-      for key, catalog in databricks_catalog.unity_catalogs : key => {
-        id           = catalog.id
-        name         = catalog.name
-        storage_root = catalog.storage_root
-        accessible_by = local.unity_catalogs[key].workspace_access
-      }
-    }
+    for k, v in databricks_mws_workspaces.workspaces : k => v.workspace_url
   }
+  description = "URLs of the Databricks workspaces"
 }
 
-output "storage_buckets" {
-  description = "GCS bucket information"
+output "databricks_workspace_ids" {
   value = {
-    metastore = {
-      name     = google_storage_bucket.metastore.name
-      url      = google_storage_bucket.metastore.url
-      location = google_storage_bucket.metastore.location
-      purpose  = "Unity Catalog metastore storage"
-    }
-    catalog_a = {
-      name     = google_storage_bucket.unity_catalog_a.name
-      url      = google_storage_bucket.unity_catalog_a.url
-      location = google_storage_bucket.unity_catalog_a.location
-      purpose  = "Unity Catalog A storage"
-    }
-    catalog_b = {
-      name     = google_storage_bucket.unity_catalog_b.name
-      url      = google_storage_bucket.unity_catalog_b.url
-      location = google_storage_bucket.unity_catalog_b.location
-      purpose  = "Unity Catalog B storage"
-    }
-    catalog_c = {
-      name     = google_storage_bucket.unity_catalog_c.name
-      url      = google_storage_bucket.unity_catalog_c.url
-      location = google_storage_bucket.unity_catalog_c.location
-      purpose  = "Unity Catalog C storage (shared)"
-    }
-    unmanaged_iceberg = {
-      name     = google_storage_bucket.unmanaged_iceberg.name
-      url      = google_storage_bucket.unmanaged_iceberg.url
-      location = google_storage_bucket.unmanaged_iceberg.location
-      purpose  = "Unmanaged Iceberg tables storage"
-    }
+    for k, v in databricks_mws_workspaces.workspaces : k => v.workspace_id
   }
+  description = "IDs of the Databricks workspaces"
 }
 
-output "external_locations" {
-  description = "External location information"
-  value = {
-    for key, location in databricks_external_location.catalog_locations : key => {
-      name = location.name
-      url  = location.url
-    }
-  }
-  depends_on = [databricks_external_location.catalog_locations]
+# Unity Catalog outputs
+output "metastore_id" {
+  value       = databricks_metastore.this.id
+  description = "ID of the shared Unity Catalog metastore"
 }
 
-output "service_accounts" {
-  description = "Service account information"
+output "catalog_names" {
   value = {
-    databricks_workspace = {
-      email        = google_service_account.databricks_workspace_sa.email
-      unique_id    = google_service_account.databricks_workspace_sa.unique_id
-      display_name = google_service_account.databricks_workspace_sa.display_name
-    }
-    unity_catalog = {
-      email        = google_service_account.unity_catalog_sa.email
-      unique_id    = google_service_account.unity_catalog_sa.unique_id
-      display_name = google_service_account.unity_catalog_sa.display_name
-    }
+    "workspace-1" = databricks_catalog.catalog_ws1.name
+    "workspace-2" = databricks_catalog.catalog_ws2.name
   }
+  description = "Names of the catalogs per workspace"
 }
 
-output "access_matrix" {
-  description = "Access matrix showing which workspace can access which catalog"
+# Storage outputs
+output "catalog_bucket_names" {
   value = {
-    workspace_1 = {
-      name    = databricks_mws_workspaces.sandbox_workspace_1.workspace_name
-      catalogs = ["catalog_a", "catalog_c"]
-      url     = databricks_mws_workspaces.sandbox_workspace_1.workspace_url
-    }
-    workspace_2 = {
-      name    = databricks_mws_workspaces.sandbox_workspace_2.workspace_name
-      catalogs = ["catalog_b", "catalog_c"]
-      url     = databricks_mws_workspaces.sandbox_workspace_2.workspace_url
-    }
-    shared_resources = {
-      catalog_c_name = databricks_catalog.unity_catalogs["catalog_c"].name
-      unmanaged_iceberg_bucket = google_storage_bucket.unmanaged_iceberg.name
-    }
+    for k, v in google_storage_bucket.catalog_buckets : k => v.name
   }
+  description = "Names of the catalog storage buckets per workspace"
 }
 
-output "next_steps" {
-  description = "Recommended next steps after deployment"
-  value = [
-    "1. Access Workspace 1 at: ${databricks_mws_workspaces.sandbox_workspace_1.workspace_url}",
-    "2. Access Workspace 2 at: ${databricks_mws_workspaces.sandbox_workspace_2.workspace_url}",
-    "3. Verify Unity Catalog access in each workspace",
-    "4. Create test tables in the available catalogs",
-    "5. Test cross-workspace data sharing using Catalog C",
-    "6. Use unmanaged Iceberg bucket at: gs://${google_storage_bucket.unmanaged_iceberg.name}"
-  ]
+output "unmanaged_bucket_names" {
+  value = {
+    for k, v in google_storage_bucket.unmanaged_buckets : k => v.name
+  }
+  description = "Names of the unmanaged iceberg tables buckets per workspace"
 }
 
-# Sensitive outputs (marked as sensitive)
-output "databricks_account_details" {
-  description = "Databricks account information"
-  sensitive   = true
+output "unmanaged_bucket_urls" {
   value = {
-    account_id      = var.databricks_account_id
-    console_url     = var.databricks_account_console_url
-    metastore_id    = databricks_metastore.unity_catalog.id
-    credential_name = databricks_storage_credential.unity_catalog_credential.name
+    for k, v in google_storage_bucket.unmanaged_buckets : k => "gs://${v.name}"
   }
+  description = "GCS URLs for the unmanaged iceberg tables buckets per workspace"
+}
+
+# Cluster outputs
+output "admin_cluster_ids" {
+  value = {
+    "workspace-1" = databricks_cluster.admin_cluster_ws1.id
+    "workspace-2" = databricks_cluster.admin_cluster_ws2.id
+  }
+  description = "IDs of the admin clusters per workspace"
+}
+
+output "shared_cluster_ids" {
+  value = {
+    "workspace-1" = databricks_cluster.shared_cluster_ws1.id
+    "workspace-2" = databricks_cluster.shared_cluster_ws2.id
+  }
+  description = "IDs of the shared clusters per workspace"
+}
+
+# Network outputs
+output "vpc_name" {
+  value       = google_compute_network.dbx_private_vpc.name
+  description = "Name of the shared VPC network"
+}
+
+output "subnet_names" {
+  value = {
+    for k, v in google_compute_subnetwork.dbx_subnets : k => v.name
+  }
+  description = "Names of the subnets per workspace"
+}
+
+output "subnet_cidrs" {
+  value = {
+    for k, v in local.workspaces : k => v.subnet_cidr
+  }
+  description = "CIDR ranges of the subnets per workspace"
+}
+
+# User and Group outputs
+output "current_user_id" {
+  value       = databricks_user.me.id
+  description = "ID of the current user in Databricks account"
+}
+
+output "group_ids" {
+  value = {
+    account_admins   = databricks_group.account_admins.id
+    workspace_admins = databricks_group.workspace_admins.id
+    data_engineers   = databricks_group.data_engineers.id
+    data_analysts    = databricks_group.data_analysts.id
+  }
+  description = "IDs of created groups"
+}
+
+# Workspace configuration summary
+output "workspace_summary" {
+  value = {
+    for k, v in local.workspaces : k => {
+      workspace_url   = databricks_mws_workspaces.workspaces[k].workspace_url
+      catalog_name    = v.catalog_name
+      use_case        = v.use_case
+      subnet_cidr     = v.subnet_cidr
+      cluster_workers = v.cluster_workers
+    }
+  }
+  description = "Summary of workspace configurations"
 }

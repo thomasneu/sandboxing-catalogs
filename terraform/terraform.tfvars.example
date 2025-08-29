@@ -1,38 +1,22 @@
-# terraform.tfvars.example
-# Copy this file to terraform.tfvars and fill in your actual values
+# Required variables
+project                           = "your-gcp-project-id"
+databricks_account_id            = "your-databricks-account-id" 
+databricks_google_service_account = "your-service-account@your-project.iam.gserviceaccount.com"
 
-# GCP Configuration (REQUIRED)
-gcp_project_id = "your-gcp-project-id"
-gcp_region     = "europe-west1"
+# Optional variables
+region = "europe-west1"
+prefix = "snd"
 
-# Databricks Configuration (REQUIRED)
-databricks_account_id = "your-databricks-account-id"  # Replace with your account ID
-databricks_account_console_url = "https://accounts.gcp.databricks.com"
+# Additional users (optional)
+additional_users = [
+  "colleague1@yourcompany.com",
+  "colleague2@yourcompany.com",
+  "analyst@yourcompany.com"
+]
 
-# Databricks Authentication (REQUIRED - Service Principal)
-# See SERVICE_PRINCIPAL_SETUP.md for detailed instructions
-databricks_client_id = "your-service-principal-client-id"
-databricks_client_secret = "your-service-principal-client-secret"
-
-# Project Configuration (OPTIONAL - defaults provided)
-environment  = "snd"
-project_name = "sandctl"
-
-# Storage Configuration (OPTIONAL)
-storage_class = "STANDARD"  # Options: STANDARD, NEARLINE, COLDLINE, ARCHIVE
-
-# Additional Resource Tags (OPTIONAL)
-resource_tags = {
-  cost_center = "data-engineering"
-  owner       = "data-team"
-  purpose     = "unity-catalog-demo"
-}
-
-# Workspace Settings (OPTIONAL)
-workspace_settings = {
-  enable_ip_access_lists         = false
-  enable_tokens                  = true
-  enable_dbfs_file_browser       = true
-  enable_web_terminal            = true
-  max_token_lifetime_seconds     = 7776000  # 90 days
+# User group assignments (optional)
+user_group_assignments = {
+  "colleague1@yourcompany.com" = "data_engineer"
+  "colleague2@yourcompany.com" = "workspace_admin"
+  "analyst@yourcompany.com"    = "data_analyst"
 }
