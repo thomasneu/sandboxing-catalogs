@@ -310,7 +310,7 @@ resource "databricks_metastore_assignment" "assignments" {
   provider             = databricks.accounts
   workspace_id         = databricks_mws_workspaces.workspaces[each.key].workspace_id
   metastore_id         = databricks_metastore.this.id
-  default_catalog_name = "hive_metastore"
+  #deprecated default_catalog_name = "hive_metastore"
 }
 
 # ===============================
@@ -361,7 +361,7 @@ resource "databricks_catalog" "catalog_a" {
 }
 
 resource "databricks_catalog" "catalog_b" {
-  provider       = databricks.workspace-1  # Create in workspace-1, then bind to workspace-2
+  provider       = databricks.workspace-2  # create in  workspace-2
   name           = local.workspaces["workspace-2"].catalog_name
   storage_root   = "gs://${google_storage_bucket.catalog_buckets["workspace-2"].name}"
   isolation_mode = "ISOLATED"
@@ -378,15 +378,16 @@ resource "databricks_catalog" "catalog_b" {
   ]
 }
 
+# since catalog is assigned to workspace where ist was created, its not necessary to do this bindings
 # Catalog Workspace Bindings (ensure ONLY access)
-resource "databricks_catalog_workspace_binding" "catalog_a_binding" {
+resource "databricks_workspace_binding" "catalog_a_binding" {
   provider       = databricks.workspace-1
   securable_name = databricks_catalog.catalog_a.name
   workspace_id   = databricks_mws_workspaces.workspaces["workspace-1"].workspace_id
 }
 
-resource "databricks_catalog_workspace_binding" "catalog_b_binding" {
-  provider       = databricks.workspace-1  # Created from workspace-1, bound to workspace-2
+resource "databricks_workspace_binding" "catalog_b_binding" {
+  provider       = databricks.workspace-2  # Created from workspace-1, bound to workspace-2
   securable_name = databricks_catalog.catalog_b.name
   workspace_id   = databricks_mws_workspaces.workspaces["workspace-2"].workspace_id
 }
@@ -397,7 +398,7 @@ resource "databricks_catalog_workspace_binding" "catalog_b_binding" {
 
 # Storage Credential for workspace-1
 resource "databricks_storage_credential" "catalog_credential_ws1" {
-  provider = databricks.workspace-1
+  provider = databricks.accounts
   name     = "${local.workspaces["workspace-1"].catalog_name}-credential"
   databricks_gcp_service_account {}
   depends_on = [
@@ -440,7 +441,7 @@ resource "databricks_schema" "default_schema_ws1" {
   catalog_name = databricks_catalog.catalog_a.name
   name         = "default"
   comment      = "Default schema for ${local.workspaces["workspace-1"].catalog_name}"
-  depends_on   = [databricks_catalog_workspace_binding.catalog_a_binding]
+  depends_on   = [databricks_catalog.catalog_a]
 }
 
 # Data sources for workspace-1
@@ -531,7 +532,7 @@ resource "databricks_schema" "default_schema_ws2" {
   catalog_name = databricks_catalog.catalog_b.name
   name         = "default"
   comment      = "Default schema for ${local.workspaces["workspace-2"].catalog_name}"
-  depends_on   = [databricks_catalog_workspace_binding.catalog_b_binding]
+  depends_on   = [databricks_catalog.catalog_b]
 }
 
 # Data sources for workspace-2
@@ -587,7 +588,7 @@ resource "databricks_grants" "metastore_grants_ws1" {
   }
   depends_on = [
     databricks_metastore_assignment.assignments,
-    databricks_catalog_workspace_binding.catalog_a_binding
+    databricks_catalog.catalog_a
   ]
 }
 
@@ -601,7 +602,7 @@ resource "databricks_grants" "metastore_grants_ws2" {
   }
   depends_on = [
     databricks_metastore_assignment.assignments,
-    databricks_catalog_workspace_binding.catalog_b_binding
+    databricks_catalog.catalog_b
   ]
 }
 
@@ -623,7 +624,7 @@ resource "databricks_grants" "catalog_grants_ws1" {
   }
   depends_on = [
     databricks_metastore_assignment.assignments,
-    databricks_catalog_workspace_binding.catalog_a_binding
+    databricks_catalog.catalog_a
   ]
 }
 
@@ -645,7 +646,7 @@ resource "databricks_grants" "catalog_grants_ws2" {
   }
   depends_on = [
     databricks_metastore_assignment.assignments,
-    databricks_catalog_workspace_binding.catalog_b_binding
+    databricks_catalog.catalog_b
   ]
 }
 
@@ -667,7 +668,7 @@ resource "databricks_grants" "schema_grants_ws1" {
   }
   depends_on = [
     databricks_metastore_assignment.assignments,
-    databricks_catalog_workspace_binding.catalog_a_binding
+    databricks_catalog.catalog_a
   ]
 }
 
@@ -689,7 +690,7 @@ resource "databricks_grants" "schema_grants_ws2" {
   }
   depends_on = [
     databricks_metastore_assignment.assignments,
-    databricks_catalog_workspace_binding.catalog_b_binding
+    databricks_catalog.catalog_b
   ]
 }
 

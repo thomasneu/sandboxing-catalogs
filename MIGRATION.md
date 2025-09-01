@@ -1,5 +1,7 @@
 # Remove old catalog resources from state
-terraform state rm databricks_catalog.catalog_ws1
+terraform state rm databricks_catalog.catalog_b
+terraform import databricks_catalog.catalog_b catalog-b
+terraform import -provider=databricks.workspace-1 databricks_catalog.catalog_a catalog-a
 terraform state rm databricks_catalog.catalog_ws2
 
 # Remove related schema resources from state  
@@ -29,7 +31,7 @@ terraform import google_service_account_iam_policy.impersonatable projects/GOOGL
 # Import project IAM member
 terraform import google_project_iam_member.sa_workspace_creator "GOOGLE_PROJECT_ID roles/YOUR_CUSTOM_ROLE_ID serviceAccount:snd-databricks-sa-0mpem4@GOOGLE_PROJECT_ID.iam.gserviceaccount.com"
 
-
+terraform import databricks_catalog.catalog_a
 _____
 
 

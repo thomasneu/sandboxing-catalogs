@@ -43,12 +43,12 @@ output "catalog_isolation_info" {
     "workspace-1" = {
       catalog_name   = databricks_catalog.catalog_a.name
       isolation_mode = databricks_catalog.catalog_a.isolation_mode
-      workspace_id   = databricks_catalog_workspace_binding.catalog_a_binding.workspace_id
+      #workspace_id   = databricks_catalog_workspace_binding.catalog_a_binding.workspace_id
     }
     "workspace-2" = {
       catalog_name   = databricks_catalog.catalog_b.name
       isolation_mode = databricks_catalog.catalog_b.isolation_mode
-      workspace_id   = databricks_catalog_workspace_binding.catalog_b_binding.workspace_id
+      #workspace_id   = databricks_catalog_workspace_binding.catalog_b_binding.workspace_id
     }
   }
   description = "Isolation information for each catalog including mode and bound workspace"
@@ -139,16 +139,17 @@ output "workspace_summary" {
       subnet_cidr       = local.workspaces["workspace-1"].subnet_cidr
       cluster_workers   = local.workspaces["workspace-1"].cluster_workers
       catalog_isolated  = true
-      bound_workspace_id = databricks_catalog_workspace_binding.catalog_a_binding.workspace_id
+      #bound_workspace_id = databricks_catalog_workspace_binding.catalog_a_binding.workspace_id
     }
     "workspace-2" = {
+
       workspace_url      = databricks_mws_workspaces.workspaces["workspace-2"].workspace_url
       catalog_name       = local.workspaces["workspace-2"].catalog_name
       use_case          = local.workspaces["workspace-2"].use_case
       subnet_cidr       = local.workspaces["workspace-2"].subnet_cidr
       cluster_workers   = local.workspaces["workspace-2"].cluster_workers
       catalog_isolated  = true
-      bound_workspace_id = databricks_catalog_workspace_binding.catalog_b_binding.workspace_id
+      #bound_workspace_id = databricks_catalog_workspace_binding.catalog_b_binding.workspace_id
     }
   }
   description = "Summary of workspace configurations including catalog isolation status"
