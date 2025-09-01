@@ -32,10 +32,26 @@ output "metastore_id" {
 
 output "catalog_names" {
   value = {
-    "workspace-1" = databricks_catalog.catalog_ws1.name
-    "workspace-2" = databricks_catalog.catalog_ws2.name
+    "workspace-1" = databricks_catalog.catalog_a.name
+    "workspace-2" = databricks_catalog.catalog_b.name
   }
-  description = "Names of the catalogs per workspace"
+  description = "Names of the isolated catalogs per workspace"
+}
+
+output "catalog_isolation_info" {
+  value = {
+    "workspace-1" = {
+      catalog_name   = databricks_catalog.catalog_a.name
+      isolation_mode = databricks_catalog.catalog_a.isolation_mode
+      workspace_id   = databricks_catalog_workspace_binding.catalog_a_binding.workspace_id
+    }
+    "workspace-2" = {
+      catalog_name   = databricks_catalog.catalog_b.name
+      isolation_mode = databricks_catalog.catalog_b.isolation_mode
+      workspace_id   = databricks_catalog_workspace_binding.catalog_b_binding.workspace_id
+    }
+  }
+  description = "Isolation information for each catalog including mode and bound workspace"
 }
 
 # Storage outputs
@@ -116,13 +132,24 @@ output "group_ids" {
 # Workspace configuration summary
 output "workspace_summary" {
   value = {
-    for k, v in local.workspaces : k => {
-      workspace_url   = databricks_mws_workspaces.workspaces[k].workspace_url
-      catalog_name    = v.catalog_name
-      use_case        = v.use_case
-      subnet_cidr     = v.subnet_cidr
-      cluster_workers = v.cluster_workers
+    "workspace-1" = {
+      workspace_url      = databricks_mws_workspaces.workspaces["workspace-1"].workspace_url
+      catalog_name       = local.workspaces["workspace-1"].catalog_name
+      use_case          = local.workspaces["workspace-1"].use_case
+      subnet_cidr       = local.workspaces["workspace-1"].subnet_cidr
+      cluster_workers   = local.workspaces["workspace-1"].cluster_workers
+      catalog_isolated  = true
+      bound_workspace_id = databricks_catalog_workspace_binding.catalog_a_binding.workspace_id
+    }
+    "workspace-2" = {
+      workspace_url      = databricks_mws_workspaces.workspaces["workspace-2"].workspace_url
+      catalog_name       = local.workspaces["workspace-2"].catalog_name
+      use_case          = local.workspaces["workspace-2"].use_case
+      subnet_cidr       = local.workspaces["workspace-2"].subnet_cidr
+      cluster_workers   = local.workspaces["workspace-2"].cluster_workers
+      catalog_isolated  = true
+      bound_workspace_id = databricks_catalog_workspace_binding.catalog_b_binding.workspace_id
     }
   }
-  description = "Summary of workspace configurations"
+  description = "Summary of workspace configurations including catalog isolation status"
 }

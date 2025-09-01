@@ -338,6 +338,60 @@ resource "google_storage_bucket" "unmanaged_buckets" {
 }
 
 # ===============================
+# ISOLATED UNITY CATALOGS (WORKSPACE-LEVEL)
+# ===============================
+
+# Unity Catalogs with isolation mode (created in workspace-1, then bound to respective workspaces)
+resource "databricks_catalog" "catalog_a" {
+  provider       = databricks.workspace-1
+  name           = local.workspaces["workspace-1"].catalog_name
+  storage_root   = "gs://${google_storage_bucket.catalog_buckets["workspace-1"].name}"
+  isolation_mode = "ISOLATED"
+  force_destroy  = true
+  comment        = "Isolated catalog for workspace-1 - ${local.workspaces["workspace-1"].use_case}"
+  properties = {
+    purpose   = local.workspaces["workspace-1"].use_case
+    workspace = "workspace-1"
+  }
+  depends_on = [
+    databricks_metastore_assignment.assignments,
+    google_storage_bucket.catalog_buckets,
+    google_storage_bucket_iam_member.catalog_reader_ws1
+  ]
+}
+
+resource "databricks_catalog" "catalog_b" {
+  provider       = databricks.workspace-1  # Create in workspace-1, then bind to workspace-2
+  name           = local.workspaces["workspace-2"].catalog_name
+  storage_root   = "gs://${google_storage_bucket.catalog_buckets["workspace-2"].name}"
+  isolation_mode = "ISOLATED"
+  force_destroy  = true
+  comment        = "Isolated catalog for workspace-2 - ${local.workspaces["workspace-2"].use_case}"
+  properties = {
+    purpose   = local.workspaces["workspace-2"].use_case
+    workspace = "workspace-2"
+  }
+  depends_on = [
+    databricks_metastore_assignment.assignments,
+    google_storage_bucket.catalog_buckets,
+    google_storage_bucket_iam_member.catalog_reader_ws2
+  ]
+}
+
+# Catalog Workspace Bindings (ensure ONLY access)
+resource "databricks_catalog_workspace_binding" "catalog_a_binding" {
+  provider       = databricks.workspace-1
+  securable_name = databricks_catalog.catalog_a.name
+  workspace_id   = databricks_mws_workspaces.workspaces["workspace-1"].workspace_id
+}
+
+resource "databricks_catalog_workspace_binding" "catalog_b_binding" {
+  provider       = databricks.workspace-1  # Created from workspace-1, bound to workspace-2
+  securable_name = databricks_catalog.catalog_b.name
+  workspace_id   = databricks_mws_workspaces.workspaces["workspace-2"].workspace_id
+}
+
+# ===============================
 # WORKSPACE-1 SPECIFIC RESOURCES
 # ===============================
 
@@ -346,7 +400,10 @@ resource "databricks_storage_credential" "catalog_credential_ws1" {
   provider = databricks.workspace-1
   name     = "${local.workspaces["workspace-1"].catalog_name}-credential"
   databricks_gcp_service_account {}
-  depends_on = [databricks_metastore_assignment.assignments]
+  depends_on = [
+    #databricks_metastore_assignment.assignments,
+    #databricks_catalog_workspace_binding.catalog_a_binding
+  ]
 }
 
 # IAM permissions for catalog bucket workspace-1
@@ -370,31 +427,20 @@ resource "databricks_external_location" "catalog_location_ws1" {
   credential_name = databricks_storage_credential.catalog_credential_ws1.id
   comment         = "External location for ${local.workspaces["workspace-1"].catalog_name}"
   depends_on = [
-    databricks_metastore_assignment.assignments,
     google_storage_bucket_iam_member.catalog_reader_ws1,
-    google_storage_bucket_iam_member.catalog_admin_ws1
-  ]
-}
+    google_storage_bucket_iam_member.catalog_admin_ws1,
+    google_storage_bucket.catalog_buckets
 
-# Unity Catalog for workspace-1
-resource "databricks_catalog" "catalog_ws1" {
-  provider     = databricks.workspace-1
-  name         = local.workspaces["workspace-1"].catalog_name
-  storage_root = "gs://${google_storage_bucket.catalog_buckets["workspace-1"].name}"
-  comment      = "Catalog for workspace-1 - ${local.workspaces["workspace-1"].use_case}"
-  properties = {
-    purpose   = local.workspaces["workspace-1"].use_case
-    workspace = "workspace-1"
-  }
-  depends_on = [databricks_metastore_assignment.assignments]
+  ]
 }
 
 # Default schema for workspace-1
 resource "databricks_schema" "default_schema_ws1" {
   provider     = databricks.workspace-1
-  catalog_name = databricks_catalog.catalog_ws1.name
+  catalog_name = databricks_catalog.catalog_a.name
   name         = "default"
   comment      = "Default schema for ${local.workspaces["workspace-1"].catalog_name}"
+  depends_on   = [databricks_catalog_workspace_binding.catalog_a_binding]
 }
 
 # Data sources for workspace-1
@@ -445,7 +491,11 @@ resource "databricks_storage_credential" "catalog_credential_ws2" {
   provider = databricks.workspace-2
   name     = "${local.workspaces["workspace-2"].catalog_name}-credential"
   databricks_gcp_service_account {}
-  depends_on = [databricks_metastore_assignment.assignments]
+  depends_on = [
+    #databricks_metastore_assignment.assignments,
+    #databricks_catalog_workspace_binding.catalog_b_binding
+    google_service_account_iam_policy.impersonatable
+  ]
 }
 
 # IAM permissions for catalog bucket workspace-2
@@ -469,31 +519,19 @@ resource "databricks_external_location" "catalog_location_ws2" {
   credential_name = databricks_storage_credential.catalog_credential_ws2.id
   comment         = "External location for ${local.workspaces["workspace-2"].catalog_name}"
   depends_on = [
-    databricks_metastore_assignment.assignments,
     google_storage_bucket_iam_member.catalog_reader_ws2,
-    google_storage_bucket_iam_member.catalog_admin_ws2
+    google_storage_bucket_iam_member.catalog_admin_ws2,
+    google_storage_bucket.catalog_buckets
   ]
-}
-
-# Unity Catalog for workspace-2
-resource "databricks_catalog" "catalog_ws2" {
-  provider     = databricks.workspace-2
-  name         = local.workspaces["workspace-2"].catalog_name
-  storage_root = "gs://${google_storage_bucket.catalog_buckets["workspace-2"].name}"
-  comment      = "Catalog for workspace-2 - ${local.workspaces["workspace-2"].use_case}"
-  properties = {
-    purpose   = local.workspaces["workspace-2"].use_case
-    workspace = "workspace-2"
-  }
-  depends_on = [databricks_metastore_assignment.assignments]
 }
 
 # Default schema for workspace-2
 resource "databricks_schema" "default_schema_ws2" {
   provider     = databricks.workspace-2
-  catalog_name = databricks_catalog.catalog_ws2.name
+  catalog_name = databricks_catalog.catalog_b.name
   name         = "default"
   comment      = "Default schema for ${local.workspaces["workspace-2"].catalog_name}"
+  depends_on   = [databricks_catalog_workspace_binding.catalog_b_binding]
 }
 
 # Data sources for workspace-2
@@ -547,7 +585,10 @@ resource "databricks_grants" "metastore_grants_ws1" {
     principal  = databricks_group.workspace_admins.display_name
     privileges = ["CREATE_CATALOG", "CREATE_CONNECTION", "CREATE_EXTERNAL_LOCATION", "CREATE_RECIPIENT", "CREATE_SHARE", "CREATE_STORAGE_CREDENTIAL", "USE_MARKETPLACE_ASSETS"]
   }
-  depends_on = [databricks_metastore_assignment.assignments]
+  depends_on = [
+    databricks_metastore_assignment.assignments,
+    databricks_catalog_workspace_binding.catalog_a_binding
+  ]
 }
 
 # Grant metastore admin to workspace admins - workspace-2
@@ -558,13 +599,16 @@ resource "databricks_grants" "metastore_grants_ws2" {
     principal  = databricks_group.workspace_admins.display_name
     privileges = ["CREATE_CATALOG", "CREATE_CONNECTION", "CREATE_EXTERNAL_LOCATION", "CREATE_RECIPIENT", "CREATE_SHARE", "CREATE_STORAGE_CREDENTIAL", "USE_MARKETPLACE_ASSETS"]
   }
-  depends_on = [databricks_metastore_assignment.assignments]
+  depends_on = [
+    databricks_metastore_assignment.assignments,
+    databricks_catalog_workspace_binding.catalog_b_binding
+  ]
 }
 
 # Grant catalog permissions - workspace-1
 resource "databricks_grants" "catalog_grants_ws1" {
   provider = databricks.workspace-1
-  catalog  = databricks_catalog.catalog_ws1.name
+  catalog  = databricks_catalog.catalog_a.name
   grant {
     principal  = databricks_group.workspace_admins.display_name
     privileges = ["ALL_PRIVILEGES"]
@@ -577,13 +621,16 @@ resource "databricks_grants" "catalog_grants_ws1" {
     principal  = databricks_group.data_analysts.display_name
     privileges = ["USE_CATALOG", "USE_SCHEMA", "SELECT"]
   }
-  depends_on = [databricks_metastore_assignment.assignments]
+  depends_on = [
+    databricks_metastore_assignment.assignments,
+    databricks_catalog_workspace_binding.catalog_a_binding
+  ]
 }
 
 # Grant catalog permissions - workspace-2
 resource "databricks_grants" "catalog_grants_ws2" {
   provider = databricks.workspace-2
-  catalog  = databricks_catalog.catalog_ws2.name
+  catalog  = databricks_catalog.catalog_b.name
   grant {
     principal  = databricks_group.workspace_admins.display_name
     privileges = ["ALL_PRIVILEGES"]
@@ -596,13 +643,16 @@ resource "databricks_grants" "catalog_grants_ws2" {
     principal  = databricks_group.data_analysts.display_name
     privileges = ["USE_CATALOG", "USE_SCHEMA", "SELECT"]
   }
-  depends_on = [databricks_metastore_assignment.assignments]
+  depends_on = [
+    databricks_metastore_assignment.assignments,
+    databricks_catalog_workspace_binding.catalog_b_binding
+  ]
 }
 
 # Grant schema permissions - workspace-1
 resource "databricks_grants" "schema_grants_ws1" {
   provider = databricks.workspace-1
-  schema   = "${databricks_catalog.catalog_ws1.name}.${databricks_schema.default_schema_ws1.name}"
+  schema   = "${databricks_catalog.catalog_a.name}.${databricks_schema.default_schema_ws1.name}"
   grant {
     principal  = databricks_group.workspace_admins.display_name
     privileges = ["ALL_PRIVILEGES"]
@@ -615,13 +665,16 @@ resource "databricks_grants" "schema_grants_ws1" {
     principal  = databricks_group.data_analysts.display_name
     privileges = ["USE_SCHEMA", "SELECT"]
   }
-  depends_on = [databricks_metastore_assignment.assignments]
+  depends_on = [
+    databricks_metastore_assignment.assignments,
+    databricks_catalog_workspace_binding.catalog_a_binding
+  ]
 }
 
 # Grant schema permissions - workspace-2
 resource "databricks_grants" "schema_grants_ws2" {
   provider = databricks.workspace-2
-  schema   = "${databricks_catalog.catalog_ws2.name}.${databricks_schema.default_schema_ws2.name}"
+  schema   = "${databricks_catalog.catalog_b.name}.${databricks_schema.default_schema_ws2.name}"
   grant {
     principal  = databricks_group.workspace_admins.display_name
     privileges = ["ALL_PRIVILEGES"]
@@ -634,7 +687,10 @@ resource "databricks_grants" "schema_grants_ws2" {
     principal  = databricks_group.data_analysts.display_name
     privileges = ["USE_SCHEMA", "SELECT"]
   }
-  depends_on = [databricks_metastore_assignment.assignments]
+  depends_on = [
+    databricks_metastore_assignment.assignments,
+    databricks_catalog_workspace_binding.catalog_b_binding
+  ]
 }
 
 # ===============================
