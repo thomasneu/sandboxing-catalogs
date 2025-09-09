@@ -82,3 +82,4 @@ variable "user_group_assignments" { type = map(string) } # User -> group mapping
 - Catalogs use `ISOLATED` mode for complete workspace separation
 - All clusters use `USER_ISOLATION` security mode
 - Resources use random suffix for unique naming
+

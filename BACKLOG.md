@@ -1,4 +1,4 @@
-1) Add workspace bindings 
+1) Add workspace bindings (y)
 
 resource "databricks_catalog" "sandbox" {
   name           = "sandbox"
@@ -43,3 +43,13 @@ resource "databricks_grants" "some" {
 4) create sample tables 
     a) Delta Table 
     b) externa
+5)
+
+6) Polaris
+- https://polaris.apache.org/releases/1.0.0/getting-started/deploying-polaris/quickstart-deploy-gcp/
+- https://github.com/apache/polaris/blob/main/getting-started/assets/cloud_providers/deploy-gcp.sh 
+- https://polaris.apache.org/releases/1.0.0/getting-started/using-polaris/
+- https://polaris.apache.org/releases/1.0.0/configuring-polaris-for-production/
+
+
+7) SCIM ROllen 
